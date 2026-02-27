@@ -46,24 +46,28 @@ class AuthState(rx.State):
 
     @rx.event
     def check_auth(self):
-        """Вызывать в on_load защищённых страниц + после логина"""
         if not self.raw_token:
-            self.authenticated = False
-            self.current_user_id = None
+            if self.authenticated or self.current_user_id is not None:
+                self.authenticated = False
+                self.current_user_id = None
             return
+
         payload = decode_jwt(self.raw_token)
         sub = payload.get("sub")
-        if sub:
-            self.authenticated = True
-            self.current_user_id = int(sub)
-        else:
-            self.authenticated = False
-            self.current_user_id = None
+
+        new_authenticated = bool(sub)
+        new_user_id = int(sub) if sub else None
+
+        if new_authenticated != self.authenticated or new_user_id != self.current_user_id:
+            self.authenticated = new_authenticated
+            self.current_user_id = new_user_id
 
     @rx.event
     def redirect_based_on_auth(self):
-        if self.authenticated:
-            return rx.redirect("/feed")
+        if not self.authenticated and self.router.page.path != "/":
+            return rx.redirect("/")
+        
+        return None
 
     def open_login(self):
         self.modal_type = "login"
