@@ -5,11 +5,14 @@ from collections import deque
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from mementonos.utils.security import hash_password, create_jwt, decode_jwt
-
+from mementonos.mementonos import app
 from sqlmodel import select
 from mementonos.models import User, Pair
 
+from mementonos.utils.logger import get_logger 
+
 pair_codes: Dict[str, dict] = {}
+logger = get_logger()
 
 RATE_LIMIT = 3
 RATE_WINDOW_MIN = 5
@@ -158,7 +161,8 @@ class AuthState(rx.State):
             self.polling_active = True
 
         while self.polling_active and self.generated_code:
-            if self.router.session.client_token not in rx.app.app.event_namespace.token_to_sid:
+            if self.router.session.client_token not in app.event_namespace.token_to_sid:
+                logger.info('Exiting poll_for_pair')
                 break
 
             await asyncio.sleep(2.5)
@@ -302,7 +306,8 @@ class AuthState(rx.State):
             current_gen = self.timer_gen
 
         while True:
-            if self.router.session.client_token not in rx.app.app.event_namespace.token_to_sid:
+            if self.router.session.client_token not in app.event_namespace.token_to_sid:
+                logger.info('Exiting tick')
                 break
 
             async with self:

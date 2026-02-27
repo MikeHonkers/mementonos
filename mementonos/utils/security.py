@@ -1,13 +1,14 @@
 import jwt
 import os
 import hashlib
+from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from mementonos.utils.logger import get_logger
-import logging
 
 logger = get_logger(__name__)
+load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
