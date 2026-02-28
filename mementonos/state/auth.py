@@ -1,10 +1,12 @@
 import reflex as rx
 import asyncio
+import os
+from pathlib import Path
 import secrets
 from collections import deque
 from datetime import datetime, timedelta
 from typing import Dict, Optional
-from mementonos.utils.security import hash_password, create_jwt, decode_jwt
+from mementonos.utils.security import hash_password, create_jwt, decode_jwt, encrypt_master_key
 from mementonos.mementonos import app
 from sqlmodel import select
 from mementonos.models import User, Pair
@@ -63,9 +65,16 @@ class AuthState(rx.State):
             self.current_user_id = new_user_id
 
     @rx.event
-    def redirect_based_on_auth(self):
+    def redirect_root_based_on_auth(self):
         if not self.authenticated and self.router.page.path != "/":
             return rx.redirect("/")
+        
+        return None
+    
+    @rx.event
+    def redirect_feed_based_on_auth(self):
+        if self.authenticated and self.router.page.path != "/feed":
+            return rx.redirect("/feed")
         
         return None
 
@@ -141,10 +150,13 @@ class AuthState(rx.State):
 
         code = secrets.token_hex(3).upper()
         expires_timestamp = int((datetime.utcnow() + timedelta(minutes=5)).timestamp())
+        kdf_salt_creator = os.urandom(16)
 
         pair_codes[code] = {
             "creator_nick": self.username,
             "hashed_pw": hash_password(self.password),
+            "plain_pw": self.password,
+            "kdf_salt_creator": kdf_salt_creator,
             "expires": expires_timestamp,
             "ip": self.get_client_ip(),
         }
@@ -225,6 +237,7 @@ class AuthState(rx.State):
             joiner = User(
                 nick=self.username,
                 hashed_pw=hash_password(self.password),
+                kdf_salt=os.urandom(16),
             )
             session.add(joiner)
             session.flush()
@@ -232,9 +245,23 @@ class AuthState(rx.State):
             creator = User(
                 nick=data["creator_nick"],
                 hashed_pw=data["hashed_pw"],
+                kdf_salt=os.urandom(16),
             )
             session.add(creator)
             session.flush()
+
+            master_key = os.urandom(32)
+
+            enc_creator = encrypt_master_key(
+                master_key,
+                data["plain_pw"],
+                creator.kdf_salt
+                )
+            enc_joiner = encrypt_master_key(
+                master_key,
+                self.password,
+                joiner.kdf_salt
+            )
 
             pair = Pair(
                 user1_id=creator.id,
@@ -246,11 +273,28 @@ class AuthState(rx.State):
             creator.pair_id = pair.id
             joiner.pair_id = pair.id
 
+            creator.encrypted_master_key = enc_creator
+            joiner.encrypted_master_key = enc_joiner
+
             session.commit()
+
+            base_dir = Path("assets/user_data") / str(pair.id)
+            try:
+                base_dir.mkdir(parents=True, exist_ok=True)
+
+                (base_dir / "common").mkdir(exist_ok=True)
+
+                (base_dir / str(creator.id)).mkdir(exist_ok=True)
+                (base_dir / str(joiner.id)).mkdir(exist_ok=True)
+
+                logger.info(f"Созданы директории для пары {pair.id}: {base_dir}")
+            except Exception as e:
+                logger.error(f"Ошибка при создании папок для пары {pair.id}: {e}")
 
             self.token = create_jwt(joiner.id, pair.id)
             yield AuthState.check_auth
 
+        data["plain_pw"] = None
         del pair_codes[code]
         self.close_modal()
         

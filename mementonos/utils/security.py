@@ -1,9 +1,14 @@
 import jwt
 import os
 import hashlib
+import base64
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.backends import default_backend
 
 from mementonos.utils.logger import get_logger
 
@@ -45,3 +50,28 @@ def decode_jwt(token: str) -> dict:
     except Exception as e:
         logger.warning("decode_jwt: UNEXPECTED ERROR %s", type(e).__name__, str(e))
         return {}
+
+def derive_fernet_key(password: str, salt: bytes, iterations: int = 10_000) -> bytes:
+    """PBKDF2 → 32 байта → base64 для Fernet"""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA512(),
+        length=32,
+        salt=salt,
+        iterations=iterations,
+        backend=default_backend()
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode("utf-8")))
+    return key
+
+def encrypt_master_key(master_key: bytes, password: str, salt: bytes) -> bytes:
+    fernet_key = derive_fernet_key(password, salt)
+    f = Fernet(fernet_key)
+    return f.encrypt(master_key)
+
+def decrypt_master_key(encrypted: bytes, password: str, salt: bytes) -> bytes:
+    fernet_key = derive_fernet_key(password, salt)
+    f = Fernet(fernet_key)
+    try:
+        return f.decrypt(encrypted)
+    except InvalidToken:
+        logger.warning("Wrong password provided.")

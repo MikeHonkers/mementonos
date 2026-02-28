@@ -1,5 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, List
+from sqlalchemy import LargeBinary
+from typing import Optional
 from datetime import datetime
 
 class User(SQLModel, table=True):
@@ -11,6 +12,16 @@ class User(SQLModel, table=True):
         default=None,
         foreign_key="pair.id",
         nullable=True,
+    )
+
+    encrypted_master_key: Optional[bytes] = Field(
+        default=None,
+        sa_column=LargeBinary,
+    )
+    
+    kdf_salt: Optional[bytes] = Field(
+        default=None,
+        sa_column=LargeBinary(16),
     )
 
 class Pair(SQLModel, table=True):

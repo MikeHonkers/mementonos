@@ -8,7 +8,7 @@ from mementonos.components.feed_grid import feed_grid
     title="Лента",
     on_load=[
         AuthState.check_auth,
-        AuthState.redirect_based_on_auth,
+        AuthState.redirect_root_based_on_auth,
     ]
 )
 def feed():

@@ -5,7 +5,7 @@ from mementonos.components.auth_form import auth_page, auth_modal
 @rx.page(
     route="/",
     title="MementoNos",
-    on_load=[AuthState.check_auth, AuthState.redirect_based_on_auth]
+    on_load=[AuthState.check_auth, AuthState.redirect_feed_based_on_auth]
 )
 def index():
     return rx.fragment(
