@@ -2,6 +2,7 @@ import reflex as rx
 from mementonos.state.auth import AuthState
 from mementonos.components.sidebar import sidebar
 from mementonos.components.feed_grid import feed_grid
+from mementonos.components.upload import upload_modal
 
 @rx.page(
     route="/feed",
@@ -22,6 +23,7 @@ def feed():
                 overflow_y="auto",
                 padding="4",
             ),
+            upload_modal(),
             width="100%",
             height="100vh",
             spacing="0",

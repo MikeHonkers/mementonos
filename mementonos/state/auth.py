@@ -278,7 +278,7 @@ class AuthState(rx.State):
 
             session.commit()
 
-            base_dir = Path("assets/user_data") / str(pair.id)
+            base_dir = os.getenv("DATA_DIR") / Path("user_data") / str(pair.id)
             try:
                 base_dir.mkdir(parents=True, exist_ok=True)
 

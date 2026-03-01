@@ -37,3 +37,42 @@ class Pair(SQLModel, table=True):
     user2: "User" = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Pair.user2_id]"}
     )
+
+class FileEncrypted(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    file_path: str = Field(
+        index=True,
+        description="Путь к зашифрованному файлу"
+    )
+    
+    original_size: int = Field(
+        ge=0,
+        description="Размер исходного файла в байтах"
+    )
+    
+    encrypted_name: str = Field(
+        description="Зашифрованная строка оригинального имени файла"
+    )
+    
+    extension: str = Field(
+        default="",
+        description="Расширение оригинального файла, например '.jpg', '.mp4'"
+    )
+    
+    uploaded_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        index=True,
+        description="Время загрузки файла на сервер (UTC)"
+    )
+    
+    uploaded_by_id: int = Field(
+        foreign_key="user.id",
+        nullable=False,
+        description="ID пользователя, который загрузил файл"
+    )
+    
+    is_common: bool = Field(
+        default=False,
+        description="True если файл в общем хранилище пары"
+    )

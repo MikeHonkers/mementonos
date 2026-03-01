@@ -1,4 +1,5 @@
 import reflex as rx
+from mementonos.state.upload import UploadState
 
 def circular_progress(
     value: float | rx.Var[float],
@@ -138,11 +139,11 @@ def sidebar() -> rx.Component:
                             align="center",
                             width="100%",
                         ),
+                        on_click=UploadState.open_upload_modal,
                         padding="12px",
                         border_radius="8px",
                         width="100%",
                     ),
-                    href="/upload",
                     width="100%",
                     underline="none",
                     _hover={"background_color": "#FFFFFF", "box_shadow": "sm"},

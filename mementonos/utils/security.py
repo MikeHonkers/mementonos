@@ -75,3 +75,9 @@ def decrypt_master_key(encrypted: bytes, password: str, salt: bytes) -> bytes:
         return f.decrypt(encrypted)
     except InvalidToken:
         logger.warning("Wrong password provided.")
+
+def encrypt_data(data: bytes, master_key: bytes) -> bytes:
+    """Шифрует любые байты с помощью Fernet и готового master_key (32 байта)."""
+    master_key = base64.urlsafe_b64encode(master_key)
+    f = Fernet(master_key)
+    return f.encrypt(data)
