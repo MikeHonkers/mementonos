@@ -11,7 +11,7 @@ from mementonos.utils.security import decode_jwt
 
 from mementonos.utils.logger import get_logger
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 class FileItem(Base):
     name: str
