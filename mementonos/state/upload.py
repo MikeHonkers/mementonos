@@ -108,7 +108,7 @@ class UploadState(rx.State):
             for file, file_info in zip(self.files, self.file_info):
                 content = await file.read()
                 encrypted_content = encrypt_data(content, master_key)
-                encrypted_name = encrypt_data(file_info.name.encode("utf-8"), master_key)
+                encrypted_name = encrypt_data(file_info.name.encode("utf-8"), master_key).decode('utf-8')
                 given_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{os.urandom(4).hex()}.enc"
                 file_path = upload_dir / given_filename
 
