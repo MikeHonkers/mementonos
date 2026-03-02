@@ -81,3 +81,8 @@ def encrypt_data(data: bytes, master_key: bytes) -> bytes:
     master_key = base64.urlsafe_b64encode(master_key)
     f = Fernet(master_key)
     return f.encrypt(data)
+
+def decrypt_data(encrypted_data: bytes, master_key: bytes) -> bytes:
+    master_key = base64.urlsafe_b64encode(master_key)
+    f = Fernet(master_key)
+    return f.decrypt(encrypted_data)

@@ -1,7 +1,8 @@
 import reflex as rx
 from mementonos.state.auth import AuthState
+from mementonos.state.feed import FeedState
 from mementonos.components.sidebar import sidebar
-from mementonos.components.feed_grid import feed_grid
+from mementonos.components.feed_grid import feed_grid, decryption_modal
 from mementonos.components.upload import upload_modal
 
 @rx.page(
@@ -10,6 +11,7 @@ from mementonos.components.upload import upload_modal
     on_load=[
         AuthState.check_auth,
         AuthState.redirect_root_based_on_auth,
+        FeedState.on_load
     ]
 )
 def feed():
@@ -24,6 +26,7 @@ def feed():
                 padding="4",
             ),
             upload_modal(),
+            decryption_modal(),
             width="100%",
             height="100vh",
             spacing="0",
