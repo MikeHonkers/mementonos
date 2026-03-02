@@ -111,6 +111,27 @@ def upload_modal() -> rx.Component:
                 padding="6px",
             ),
 
+            rx.cond(
+                UploadState.is_uploading,
+                rx.vstack(
+                    rx.progress(
+                        value=UploadState.upload_progress,
+                        is_indeterminate=UploadState.upload_progress <= 0,
+                        color_scheme="purple",
+                        height="8px",
+                        width="100%",
+                        margin_top="12px",
+                        margin_bottom="8px",
+                    ),
+                    width="100%",
+                    spacing="1",
+                    padding_x="4px",
+                    padding_bottom="2px",
+                    visible=UploadState.is_uploading,
+                ),
+                rx.fragment(),
+            ),
+
             rx.hstack(
                 rx.dialog.close(
                     rx.button("Отмена", variant="outline", color_scheme="gray", on_click=UploadState.close_upload_modal),

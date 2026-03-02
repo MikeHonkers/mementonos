@@ -24,7 +24,7 @@ class UploadState(rx.State):
     files: List[rx.UploadFile] = []
     file_info: List[FileItem] = []
     is_uploading: bool = False
-    upload_progress: float = 0
+    upload_progress: int = 0
     to_common: bool = False
 
     upload_password: str = ""
@@ -132,7 +132,7 @@ class UploadState(rx.State):
 
                 processed += 1
                 async with self:
-                    self.upload_progress = (processed / total) * 100
+                    self.upload_progress = int((processed / total) * 100)
                 yield
 
             if self.upload_progress == 100:
