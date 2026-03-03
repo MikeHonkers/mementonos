@@ -6,13 +6,14 @@ import time
 load_dotenv()
 TMP_DIR = Path(os.getenv("DATA_DIR")) / 'tmp'
 CHECK_INTERVAL = 5
+DELETE_LIFETIME = 60 * 20
 
 def cleanup_loop():
     while True:
         now = time.time()
         for p in list(TMP_DIR.iterdir()):
             if p.is_file() and p.name.startswith("dec_"):
-                if now - p.stat().st_mtime > 5:
+                if now - p.stat().st_mtime > DELETE_LIFETIME:
                     try:
                         p.unlink()
                         print(f"Удалён: {p}")

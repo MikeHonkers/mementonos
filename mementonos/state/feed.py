@@ -1,10 +1,10 @@
 import reflex as rx
-from sqlmodel import select, func
+from sqlmodel import select, or_, and_, func, Session
 import mimetypes
 from mementonos.utils.security import decode_jwt, decrypt_master_key, hash_password, decrypt_data
 from mementonos.utils.logger import get_logger
 from mementonos.utils.cache import save_master_key, get_master_key
-from mementonos.models import User, FileEncrypted
+from mementonos.models import User, Pair, FileEncrypted
 from typing import List, Optional
 from datetime import datetime
 from dotenv import load_dotenv
@@ -33,6 +33,24 @@ def get_mime_type(extension: str) -> str:
         
         return custom_mimes.get(extension.lower(), 'application/octet-stream')
 
+def get_partner_id(user_id: int, session: Session) -> int | None:
+    """
+    Находит ID партнёра по ID пользователя.
+    Возвращает None, если пары нет.
+    """
+    stmt = select(Pair).where(
+        (Pair.user1_id == user_id) | (Pair.user2_id == user_id)
+    )
+    pair = session.exec(stmt).first()
+    
+    if not pair:
+        return None
+    
+    if pair.user1_id == user_id:
+        return pair.user2_id
+    else:
+        return pair.user1_id
+    
 class MediaItem(rx.Base):
     """Модель расшифрованного медиафайла для отображения в ленте."""
     id: int
@@ -48,6 +66,7 @@ class MediaItem(rx.Base):
 
 class FeedState(rx.State):
     show_decryption_modal: bool = False
+    show_common: bool = False
     upload_password: str = ""
     master_key: Optional[bytes] = None
     
@@ -58,9 +77,27 @@ class FeedState(rx.State):
     total_pages: int = 1
     items_per_page: int = 30
 
+    @rx.event
+    def switch_show_common(self):
+        if self.show_common != True:
+            self.show_common = True
+            self.current_page = 1
+            self.total_pages = 1
+            return FeedState.on_load()
+
+    @rx.event
+    def switch_show_private(self):
+        if self.show_common != False:
+            self.show_common = False
+            self.current_page = 1
+            self.total_pages = 1
+            return FeedState.on_load()
+
+    @rx.event
     def open_decryption_modal(self):
         self.show_decryption_modal = True
 
+    @rx.event
     def close_decryption_modal(self):
         self.show_decryption_modal = False
         self.upload_password = ""
@@ -91,7 +128,8 @@ class FeedState(rx.State):
             logger.error(f"Ошибка доступа к ключу: {str(e)}")
             yield rx.toast.error(f"Ошибка доступа к ключу: {str(e)}")
             return
-        
+    
+    @rx.event
     def load_media(self, page: int = 1):
         """Загрузить файлы текущего пользователя с пагинацией."""
         payload = decode_jwt(self.token)
@@ -105,10 +143,29 @@ class FeedState(rx.State):
         
         with rx.session() as session:
             # Базовый запрос: файлы, загруженные текущим пользователем
-            base_query = select(FileEncrypted).where(
-                FileEncrypted.uploaded_by_id == user_id,
-                FileEncrypted.extension.in_(allowed_extensions)
-            ).order_by(FileEncrypted.uploaded_at.desc())
+            if not self.show_common:
+                base_query = select(FileEncrypted).where(
+                    and_(
+                    FileEncrypted.uploaded_by_id == user_id,
+                    FileEncrypted.is_common == False,
+                    ),
+                    FileEncrypted.extension.in_(allowed_extensions)
+                ).order_by(FileEncrypted.uploaded_at.desc())
+            else:
+                partner_id = get_partner_id(user_id, session)
+                base_query = select(FileEncrypted).where(
+                    or_(
+                        and_(
+                            FileEncrypted.uploaded_by_id == user_id,
+                            FileEncrypted.is_common == True
+                        ),
+                        and_(
+                            FileEncrypted.uploaded_by_id == partner_id,
+                            FileEncrypted.is_common == True
+                        )
+                    ),
+                    FileEncrypted.extension.in_(allowed_extensions)
+                ).order_by(FileEncrypted.uploaded_at.desc())
 
             # Общее количество записей
             total_count = session.exec(
@@ -142,6 +199,7 @@ class FeedState(rx.State):
             self.media_items.append(media_item)
         logger.info(f"loaded {len(items)} media files to media_items.")
         
+    @rx.event
     def on_load(self):
         payload = decode_jwt(self.token)
         user_id = int(payload.get("sub"))

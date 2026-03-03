@@ -1,5 +1,6 @@
 import reflex as rx
 from mementonos.state.upload import UploadState
+from mementonos.state.feed import FeedState
 
 def circular_progress(
     value: float | rx.Var[float],
@@ -211,17 +212,19 @@ def sidebar() -> rx.Component:
             rx.hstack(
                 rx.button(
                     "МОЁ",
-                    variant="solid",
+                    variant=rx.cond(FeedState.show_common, "outline", "solid"),
                     color_scheme="purple",
                     flex="1",
                     padding_y="3",
+                    on_click=FeedState.switch_show_private
                 ),
                 rx.button(
                     "НАШЕ",
-                    variant="outline",
+                    variant=rx.cond(FeedState.show_common, "solid", "outline"),
                     color_scheme="purple",
                     flex="1",
                     padding_y="3",
+                    on_click=FeedState.switch_show_common
                 ),
                 spacing="3",
                 margin_left="12px",
