@@ -1,6 +1,11 @@
 import reflex as rx
+import secrets
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+from urllib.parse import quote
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
 from mementonos.models import FileEncrypted
 from mementonos.state.feed import get_mime_type
 from mementonos.utils.security import decrypt_data, decode_jwt
@@ -9,6 +14,7 @@ from mementonos.utils.cache import get_master_key
 import logging
 
 logger = logging.getLogger(__name__)
+load_dotenv()
 
 def get_fastapi_app():
 
@@ -40,24 +46,58 @@ def get_fastapi_app():
         if not master_key:
             raise HTTPException(status_code=401, detail="Требуется мастер ключ")
         
-        try:
-            with open(file_record.file_path, 'rb') as f:
-                encrypted_data = f.read()
+        ext = file_record.extension or ".bin"
+        safe_filename = f"dec_{item_id}{ext}"
+        Path(f"{os.getenv('DATA_DIR')}/tmp").mkdir(parents=True, exist_ok=True)
+        decrypted_path = Path(f"{os.getenv('DATA_DIR')}/tmp") / safe_filename
+
+        should_decrypt = True
+        if decrypted_path.exists():
+            should_decrypt = False
+
+        if should_decrypt:
+            try:
+                with open(file_record.file_path, 'rb') as f:
+                    encrypted_data = f.read()
+                
+                decrypted_data = decrypt_data(encrypted_data, master_key)
+
+                tmp_name = f"{safe_filename}.writing.{secrets.token_hex(8)}"
+                tmp_path = Path(f"{os.getenv('DATA_DIR')}/tmp") / tmp_name
+
+                with open(tmp_path, "wb") as f:
+                    f.write(decrypted_data)
+                    f.flush()
+                    os.fsync(f.fileno())
+
+                # Переименование → атомарно
+                tmp_path.replace(decrypted_path)
             
-            decrypted_data = decrypt_data(encrypted_data, master_key)
+            except Exception as e:
+                logger.error(f"Ошибка при расшифровке файла {item_id}: {e}")
+                if 'tmp_path' in locals() and tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except:
+                        pass
+                raise HTTPException(status_code=500, detail="Ошибка при чтении файла")
+        
+        filename = decrypt_data(file_record.encrypted_name.encode('utf-8'), master_key).decode('utf-8')
+        encoded_filename = quote(filename)
+        mime_type = get_mime_type(file_record.extension)
+
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}",
+        }
+
+        return FileResponse(
+            path=decrypted_path,
+            media_type=mime_type,
+            filename=filename,
+            headers=headers,
+        )
             
-            mime_type, _ = get_mime_type(file_record.extension)
-            
-            return Response(
-                content=decrypted_data,
-                media_type=mime_type,
-                headers={
-                    "Content-Disposition": f'inline; filename="{decrypt_data(file_record.encrypted_name.encode("utf-8"), master_key).decode("utf-8")}"'
-                }
-            )
-        except Exception as e:
-            logger.error(f"Ошибка при расшифровке файла {item_id}: {e}")
-            raise HTTPException(status_code=500, detail="Ошибка при чтении файла")
 
     @fastapi_app.get("/api/media/{item_id}/thumbnail")
     async def get_thumbnail(item_id: int, request: Request):

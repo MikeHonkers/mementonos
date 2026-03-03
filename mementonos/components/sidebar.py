@@ -210,14 +210,14 @@ def sidebar() -> rx.Component:
             rx.heading("Режим ленты", size="5", margin_bottom="3", color="#2D3748", padding="12px"),
             rx.hstack(
                 rx.button(
-                    "НАШЕ",
+                    "МОЁ",
                     variant="solid",
                     color_scheme="purple",
                     flex="1",
                     padding_y="3",
                 ),
                 rx.button(
-                    "МОЁ",
+                    "НАШЕ",
                     variant="outline",
                     color_scheme="purple",
                     flex="1",

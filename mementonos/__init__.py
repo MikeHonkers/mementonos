@@ -1,1 +1,1 @@
-from mementonos.pages import index, feed
+from mementonos.pages import index, feed, media_page

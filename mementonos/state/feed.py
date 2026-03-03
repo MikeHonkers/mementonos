@@ -3,7 +3,7 @@ from sqlmodel import select, func
 import mimetypes
 from mementonos.utils.security import decode_jwt, decrypt_master_key, hash_password, decrypt_data
 from mementonos.utils.logger import get_logger
-from mementonos.utils.cache import save_master_key
+from mementonos.utils.cache import save_master_key, get_master_key
 from mementonos.models import User, FileEncrypted
 from typing import List, Optional
 from datetime import datetime
@@ -56,7 +56,7 @@ class FeedState(rx.State):
     media_items: List[MediaItem] = []
     current_page: int = 1
     total_pages: int = 1
-    items_per_page: int = 40
+    items_per_page: int = 30
 
     def open_decryption_modal(self):
         self.show_decryption_modal = True
@@ -143,6 +143,10 @@ class FeedState(rx.State):
         logger.info(f"loaded {len(items)} media files to media_items.")
         
     def on_load(self):
+        payload = decode_jwt(self.token)
+        user_id = int(payload.get("sub"))
+        self.master_key = get_master_key(user_id)
+        
         if not self.master_key:
             self.open_decryption_modal()
         else:
